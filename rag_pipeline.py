@@ -8,14 +8,17 @@ from llama_index.core import PropertyGraphIndex
 from process_documents import get_nodes
 from graph_rag_query_engine import GraphRAGQueryEngine
 
-class GraphRAGApp:
-    def __init__(self, index_path="cached_graph_index.pkl", force_rebuild=False):
-        self.index_path = index_path
+class RagPipeline:
+    """A pipeline for building and querying a knowledge graph using RAG techniques."""
+
+    def __init__(self, graph_id:str, force_rebuild=False):
+        self.graph_id = graph_id
+        self.index_path = f"graph_cache/{graph_id}.pkl"
         self.force_rebuild = force_rebuild
-        self.index = self._load_or_build_index()
-        self.query_engine = GraphRAGQueryEngine(
-            graph_store=self.index.property_graph_store, llm=llm
-        )
+        # self.index = self._load_or_build_index()
+        # self.query_engine = GraphRAGQueryEngine(
+        #     graph_store=self.index.property_graph_store, llm=llm
+        # )
 
     def _load_or_build_index(self):
         if not self.force_rebuild and os.path.exists(self.index_path):
@@ -42,6 +45,7 @@ class GraphRAGApp:
         print("✅ Graph index cached at:", self.index_path)
 
         return index
+        
 
     def query(self, question: str):
         """Query the graph using a natural language question."""
