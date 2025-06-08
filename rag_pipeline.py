@@ -14,11 +14,18 @@ class RagPipeline:
 
     def __init__(self, graph_id:str, force_rebuild=False):
         self.graph_id = graph_id
-        self.index_path = f"graph_cache/{graph_id}.pkl"
+        self.base_dir = os.path.join("cached_graphs", self.graph_id)
+        self.index_path = os.path.join(self.base_dir, "graph_index.pkl")
+        self.graphpath = os.path.join(self.base_dir, "graph.json")
         self.force_rebuild = force_rebuild
+
+        os.makedirs(self.base_dir, exist_ok=True)
+        
+
         # self.index = self._load_or_build_index()
         # self.query_engine = GraphRAGQueryEngine(
-        #     graph_store=self.index.property_graph_store, llm=llm
+        #     
+        # graph_store=self.index.property_graph_store, llm=llm
         # )
 
     def _load_or_build_index(self):
@@ -69,14 +76,12 @@ class RagPipeline:
                 "description": edge.properties.get("relation_description", "")
             })
 
-        self.nodes = nodes
-        self.edges = edges
+        self.graph = {
+            "nodes": nodes,
+            "edges": edges
+        }
 
-        with open(os.path.join(output_dir, "nodes.json"), "w", encoding="utf-8") as f:
-            json.dump(nodes, f, indent=2)
-
-        with open(os.path.join(output_dir, "edges.json"), "w", encoding="utf-8") as f:
-            json.dump(edges, f, indent=2)
+        with open(os.path.join(self.ba, "graph.json"), "w") as f:
 
         print(f"📁 Graph exported to '{output_dir}/nodes.json' and '{output_dir}/edges.json'")
 
