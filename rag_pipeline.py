@@ -1,4 +1,5 @@
 import os
+import json
 import pickle
 from graph_parser import parse_fn, KG_TRIPLET_EXTRACT_TMPL
 from graph_rag_store import GraphRAGStore
@@ -45,7 +46,39 @@ class RagPipeline:
         print("✅ Graph index cached at:", self.index_path)
 
         return index
-        
+    
+    def export_graph_json(self, output_dir="graph_exports"):
+        """Export graph nodes and edges to JSON files for visualization."""
+        graph = self.index.property_graph_store.graph
+        nodes = []
+        edges = []
+
+        for node in graph.nodes.values():
+            nodes.append({
+                "id": node.id,
+                "name": node.properties.get("name", ""),
+                "label": node.label,
+                "description": node.properties.get("entity_description", "")
+            })
+
+        for edge in graph.edges:
+            edges.append({
+                "source": edge.source,
+                "target": edge.target,
+                "label": edge.label,
+                "description": edge.properties.get("relation_description", "")
+            })
+
+        self.nodes = nodes
+        self.edges = edges
+
+        with open(os.path.join(output_dir, "nodes.json"), "w", encoding="utf-8") as f:
+            json.dump(nodes, f, indent=2)
+
+        with open(os.path.join(output_dir, "edges.json"), "w", encoding="utf-8") as f:
+            json.dump(edges, f, indent=2)
+
+        print(f"📁 Graph exported to '{output_dir}/nodes.json' and '{output_dir}/edges.json'")
 
     def query(self, question: str):
         """Query the graph using a natural language question."""
