@@ -1,5 +1,6 @@
 import os
 import json
+import datetime
 import pickle
 from graph_parser import parse_fn, KG_TRIPLET_EXTRACT_TMPL
 from graph_rag_store import GraphRAGStore
@@ -16,7 +17,8 @@ class RagPipeline:
         self.graph_id = graph_id
         self.base_dir = os.path.join("cached_graphs", self.graph_id)
         self.index_path = os.path.join(self.base_dir, "graph_index.pkl")
-        self.graphpath = os.path.join(self.base_dir, "graph.json")
+        self.graph_path = os.path.join(self.base_dir, "graph.json")
+        self.file_log = os.path.join(self.base_dir, "file_log.josn")
         self.force_rebuild = force_rebuild
 
         os.makedirs(self.base_dir, exist_ok=True)
@@ -54,6 +56,8 @@ class RagPipeline:
 
         return index
     
+    
+    
     def export_graph_json(self, output_dir="graph_exports"):
         """Export graph nodes and edges to JSON files for visualization."""
         graph = self.index.property_graph_store.graph
@@ -81,8 +85,8 @@ class RagPipeline:
             "edges": edges
         }
 
-        with open(os.path.join(self.ba, "graph.json"), "w") as f:
-
+        with open(self.graph_path, "w") as f:
+            json.dump(self.graph, f, indent=2)
         print(f"📁 Graph exported to '{output_dir}/nodes.json' and '{output_dir}/edges.json'")
 
     def query(self, question: str):
@@ -104,3 +108,23 @@ class RagPipeline:
             print("🗑️ Cached index removed.")
         else:
             print("⚠️ No cache file to remove.")
+
+    def log_update(self, filename: str, added_nodes: int, added_edges: int, notes: str = ""):
+        log_entry = {
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "filename": filename,
+            "notes": notes,
+            "added_nodes": added_nodes,
+            "added_edges": added_edges
+        }
+
+        log_path = os.path.join(self.base_dir, "logs.json")
+        logs = []
+        if os.path.exists(log_path):
+            with open(log_path, "r") as f:
+                logs = json.load(f)
+
+        logs.append(log_entry)
+
+        with open(log_path, "w") as f:
+            json.dump(logs, f, indent=2)
