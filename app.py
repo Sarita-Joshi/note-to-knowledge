@@ -1,3 +1,4 @@
+import os
 import uuid
 import asyncio
 from fastapi import FastAPI, Form, HTTPException, File, UploadFile
@@ -54,6 +55,23 @@ class GraphResponse(BaseModel):
     nodes: List[Node]
     edges: List[Edge]
 
+# Upload
+def build_pipeline_and_graph(graph_id: str, contents: str):
+    pipeline = RagPipeline(graph_id=graph_id, text=contents)
+    return pipeline
+
+import os
+async def check_in_cache(graph_id: str,) -> bool:
+    if graph_id in graphs:
+        return True
+    base_dir = os.path.join("cached_graphs", graph_id)
+    if os.path.exists(base_dir):
+        pipeline = await run_in_thread(build_pipeline_and_graph, graph_id)
+        graphs[graph_id] = pipeline
+        return True
+    return False
+
+
 # Root check
 @app.get("/", response_model=str)
 def root():
@@ -67,7 +85,7 @@ async def run_in_thread(fn, *args):
 # Query endpoint
 @app.post("/query", response_model=str)
 async def query(question: QueryRequest, graph_id: str = "default"):
-    if graph_id not in graphs:
+    if not await check_in_cache(graph_id):
         raise HTTPException(status_code=404, detail="Graph ID not found.")
     try:
         answer = await run_in_thread(graphs[graph_id].chat, question.question)
@@ -78,7 +96,7 @@ async def query(question: QueryRequest, graph_id: str = "default"):
 # Triplets
 @app.get("/triplets", response_model=TripletResponse)
 async def get_triplets(graph_id: str = "default"):
-    if graph_id not in graphs:
+    if not await check_in_cache(graph_id):
         raise HTTPException(status_code=404, detail="Graph ID not found.")
 
     try:
@@ -103,7 +121,7 @@ async def get_triplets(graph_id: str = "default"):
 # Graph data
 @app.get("/graph", response_model=GraphResponse)
 async def get_graph(graph_id: str = "default"):
-    if graph_id not in graphs:
+    if not await check_in_cache(graph_id):
         raise HTTPException(status_code=404, detail="Graph ID not found.")
 
     try:
@@ -112,11 +130,6 @@ async def get_graph(graph_id: str = "default"):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-# Upload
-def build_pipeline_and_graph(graph_id: str, contents: str):
-    pipeline = RagPipeline(graph_id=graph_id, text=contents)
-    return pipeline
 
 @app.post("/upload", response_model=str)
 async def upload_document(
