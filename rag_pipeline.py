@@ -6,18 +6,18 @@ from graph_parser import parse_fn, KG_TRIPLET_EXTRACT_TMPL
 from graph_rag_store import GraphRAGStore
 from graph_rag_extractor import GraphRAGExtractor
 from llm_factory import llm, embed_model
-from llama_index.core import PropertyGraphIndex
+from llama_index.core import PropertyGraphIndex, StorageContext, load_index_from_storage
 from process_documents import get_nodes
 from graph_rag_query_engine import GraphRAGQueryEngine
 
 class RagPipeline:
     """A pipeline for building and querying a knowledge graph using RAG techniques."""
 
-    def __init__(self, graph_id:str, text:str, force_rebuild=False):
+    def __init__(self, graph_id:str, text:str=None, force_rebuild=False):
         self.graph_id = graph_id
         self.text = text
         self.base_dir = os.path.join("cached_graphs", self.graph_id)
-        self.index_path = os.path.join(self.base_dir, "graph_index.pkl")
+        self.index_path = os.path.join(self.base_dir, ".index")
         self.graph_path = os.path.join(self.base_dir, "graph.json")
         self.file_log = os.path.join(self.base_dir, "file_log.josn")
         self.force_rebuild = force_rebuild
@@ -30,10 +30,11 @@ class RagPipeline:
         
 
     def _load_or_build_index(self):
-        if not self.force_rebuild and os.path.exists(self.index_path):
-            print("Loading cached graph index...")
-            with open(self.index_path, "rb") as f:
-                return pickle.load(f)
+
+        storage_context = StorageContext.from_defaults() 
+        if os.path.exists(self.index_path) and not self.force_rebuild:
+            index = load_index_from_storage(storage_context)
+            return index
 
         print("Building graph index...")
         nodes = get_nodes(text=self.text)
@@ -53,12 +54,11 @@ class RagPipeline:
             show_progress=True,
             embed_model=embed_model,
             llm=llm,
+            storage_context=storage_context
         )
 
-        with open(self.index_path, "wb") as f:
-            pickle.dump(index, f)
+        storage_context.persist(self.index_path)
         print("Graph index cached at:", self.index_path)
-
         return index
     
     def update_index(self, text: str):
