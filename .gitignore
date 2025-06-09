@@ -6,6 +6,11 @@ __pycache__/
 # C extensions
 *.so
 
+
+cached_graphs/
+
+
+
 # Distribution / packaging
 .Python
 build/

@@ -1,16 +1,19 @@
 import uuid
 import asyncio
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException, File, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
-app = FastAPI()
-from rag_pipeline import RagPipeline
-# Initialize the RAG pipeline
-graphs: Dict[str, RagPipeline] = {}
+from concurrent.futures import ThreadPoolExecutor
 
-# CORS middleware to allow requests from any origin
+from rag_pipeline import RagPipeline
+
+app = FastAPI()
+graphs: Dict[str, RagPipeline] = {}
+executor = ThreadPoolExecutor(max_workers=10)
+
+# CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,8 +22,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Models
 class QueryRequest(BaseModel):
     question: str
+
 class Triplet(BaseModel):
     source: str
     source_type: str
@@ -30,8 +35,10 @@ class Triplet(BaseModel):
     target_desc: str
     relation: str
     relation_desc: str
+
 class TripletResponse(BaseModel):
     triplets: List[Triplet]
+
 class Node(BaseModel):
     id: str
     type: str
@@ -47,69 +54,69 @@ class GraphResponse(BaseModel):
     nodes: List[Node]
     edges: List[Edge]
 
+# Root check
 @app.get("/", response_model=str)
 def root():
-    """Root endpoint to check if the server is running."""
     return "GraphRAG API is running. Use /query to ask questions or /triplets to get the knowledge graph triplets."
 
+# Background-safe helpers
+async def run_in_thread(fn, *args):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(executor, fn, *args)
+
+# Query endpoint
 @app.post("/query", response_model=str)
 async def query(question: QueryRequest, graph_id: str = "default"):
-    """Endpoint to query the knowledge graph with a natural language question."""
-
     if graph_id not in graphs:
         raise HTTPException(status_code=404, detail="Graph ID not found.")
     try:
-        answer = graphs[graph_id].chat(question.question)
+        answer = await run_in_thread(graphs[graph_id].chat, question.question)
         return answer
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
-@app.get("/triplets", response_model = TripletResponse)
-async def get_triplets(graph_id: str = "default"):
 
+# Triplets
+@app.get("/triplets", response_model=TripletResponse)
+async def get_triplets(graph_id: str = "default"):
     if graph_id not in graphs:
         raise HTTPException(status_code=404, detail="Graph ID not found.")
 
     try:
-        triplets = graphs[graph_id].get_triplets()
-        triplet_list = []
-        for triplet in triplets:
-            source = triplet[0][0]
-            edge = triplet[0][1]
-            target = triplet[0][2]
-
-            triplet_list.append(Triplet(
-                source = source.name,
-                source_type = source.label,
-                source_desc = source.properties.get("entity_description", ""),
-                target = target.name,
-                target_type = target.label,
-                target_desc = target.properties.get("entity_description", ""),
-                relation = edge.label or "related_to",
-                relation_desc = edge.properties.get("relation_description", "")
-            ))
-        
+        triplets = await run_in_thread(graphs[graph_id].get_triplets)
+        triplet_list = [
+            Triplet(
+                source=t[0][0].name,
+                source_type=t[0][0].label,
+                source_desc=t[0][0].properties.get("entity_description", ""),
+                target=t[0][2].name,
+                target_type=t[0][2].label,
+                target_desc=t[0][2].properties.get("entity_description", ""),
+                relation=t[0][1].label or "related_to",
+                relation_desc=t[0][1].properties.get("relation_description", "")
+            ) for t in triplets
+        ]
         return TripletResponse(triplets=triplet_list)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Graph data
 @app.get("/graph", response_model=GraphResponse)
 async def get_graph(graph_id: str = "default"):
-    """Endpoint to get the knowledge graph in JSON format."""
     if graph_id not in graphs:
         raise HTTPException(status_code=404, detail="Graph ID not found.")
 
     try:
-        
-        graph = graphs[graph_id].get_graph_json()
+        graph = await run_in_thread(graphs[graph_id].get_graph_json)
         return GraphResponse(nodes=graph['nodes'], edges=graph['edges'])
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-   
-from fastapi import File, UploadFile
+# Upload
+def build_pipeline_and_graph(graph_id: str, contents: str):
+    pipeline = RagPipeline(graph_id=graph_id, text=contents)
+    return pipeline
 
 @app.post("/upload", response_model=str)
 async def upload_document(
@@ -122,16 +129,20 @@ async def upload_document(
             contents = file.file.read().decode("utf-8")
         elif text:
             contents = text
-            
-        if not graph_id or graph_id not in graphs:
+        else:
+            raise HTTPException(status_code=400, detail="No document or text provided.")
+
+        if not graph_id:
             graph_id = "graph_" + uuid.uuid4().hex[:8]
-            graphs[graph_id] = RagPipeline(graph_id=graph_id, text=contents)
-        
-        graphs[graph_id].build_graph_from_text(contents)
+
+        pipeline = await run_in_thread(build_pipeline_and_graph, graph_id, contents)
+        graphs[graph_id] = pipeline
+
         return f"✅ Document uploaded and graph built with ID: {graph_id}"
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Reset
 @app.delete("/reset", response_model=str)
 async def reset_graph(graph_id: str):
     if graph_id in graphs:
@@ -140,8 +151,7 @@ async def reset_graph(graph_id: str):
     else:
         raise HTTPException(status_code=404, detail="Graph ID not found.")
 
+# Dev mode
 if __name__ == "__main__":
-    import nest_asyncio
-    nest_asyncio.apply()
     import uvicorn
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
