@@ -99,7 +99,7 @@ Always provide short, direct answers. Do not say "Based on the graph" or refer t
         graph = self.index.property_graph_store.graph
         nodes = []
         edges = []
-
+        node_ids = set()  # Track unique node IDs to avoid duplicates
         for node in list(graph.nodes.values()):
             try:
                 nodes.append({
@@ -107,14 +107,17 @@ Always provide short, direct answers. Do not say "Based on the graph" or refer t
                     "type": node.label,
                     "description": node.properties.get("entity_description", "")
                 })
+                node_ids.add(node.name)
             except Exception as e:
                 continue  # Skip nodes that cause errors
         for edge in graph.relations.values():
+            if not edge.source_id in node_ids or not edge.target_id in node_ids:
+                continue
             edges.append({
                 "source": edge.source_id,
                 "target": edge.target_id,
                 "relationship": edge.label or "related_to",
-                "description": edge.properties.get("relation_description", "")
+                "description": edge.properties.get("relationship_description", "")
             })
 
         self.graph = {

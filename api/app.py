@@ -10,7 +10,7 @@ from llama_index_server.rag_pipeline import RagPipeline
 from models import *
 app = FastAPI()
 graphs: Dict[str, RagPipeline] = {}
-executor = ThreadPoolExecutor(max_workers=10)
+executor = ThreadPoolExecutor(max_workers=20)
 
 # CORS setup
 app.add_middleware(
@@ -20,6 +20,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Background-safe helpers
+async def run_in_thread(fn, *args):
+    # loop = asyncio.get_running_loop()
+    # return await loop.run_in_executor(executor, fn, *args)
+    loop = asyncio.get_running_loop()
+    future = loop.run_in_executor(executor, fn, *args)
+    # futures.append(future)
+    return await future
 
 
 # Upload
@@ -44,10 +53,6 @@ async def check_in_cache(graph_id: str,) -> bool:
 def root():
     return "GraphRAG API is running."
 
-# Background-safe helpers
-async def run_in_thread(fn, *args):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(executor, fn, *args)
 
 # Query endpoint
 @app.get("/query", response_model=str)
@@ -89,7 +94,7 @@ async def get_triplets(graph_id: str = "default"):
                 target_type=t[0][2].label,
                 target_desc=t[0][2].properties.get("entity_description", ""),
                 relation=t[0][1].label or "related_to",
-                relation_desc=t[0][1].properties.get("relation_description", "")
+                relation_desc=t[0][1].properties.get("relationship_description", "")
             ) for t in triplets
         ]
         return TripletResponse(triplets=triplet_list)

@@ -1,34 +1,33 @@
 KG_TRIPLET_EXTRACT_TMPL = """
 -Goal-
-Given a text document, identify all entities and their entity types from the text and all relationships among the identified entities.
-Given the text, extract up to {max_knowledge_triplets} entity-relation triplets.
+Given a text document, extract up to {max_knowledge_triplets} knowledge triplets, each consisting of two entities and their relationship.
+Strictly follow the rules for entity extraction, naming conventions, and relation extraction as outlined below.
 
 -Steps-
-1. Identify all entities. Prefer entities that are involved in meaningful relationships described in the text. Avoid extracting vague entities. For each identified entity, extract the following information:
-- entity_name:  Use the **most complete, canonical, and standardized form** of the entity name as explicitly mentioned in the text. Always **capitalize properly**. For example:
-  - Use **"Microsoft Word"**, not "ms word", "MSWORD", or "Word".
-  - Use **"John Smith"**, not "John", "J. Smith", or "he".
-  - Avoid abbreviations, nicknames, or partially mentioned forms.
-  - Avoid using lowercase-only or incomplete names.
-  - If the same entity appears in different forms across documents (e.g., "Google Inc." and "Google"), **always use the most descriptive and complete form**.
 
-- entity_type: Use only standard high-level types such as:
-  - "Person"
-  - "Company"
-  - "Product"
-  - "Award"
-  - "Scientific Theory"
-  - "Characteristic"
-  Avoid overly specific or custom types (e.g., "Software Engineer"/ "Scientist"/ "Sister" should always be classified as "Person").
+Entity Extraction
+Identify all entities that participate in meaningful, explicit relationships in the text.
+For each entity, extract:
+entity_name:
+Use the most complete, canonical, and standardized form of the entity name as explicitly mentioned in the text. Always capitalize properly.
+Avoid abbreviations, nicknames, or partially mentioned forms.
+If the same entity appears in different forms across documents, always use the most descriptive and complete form.
+entity_type: Assign a type or class to the entity, using the most accurate and descriptive label based on the text.
+The entity type can be any appropriate category or label that fits the entity as described (e.g., "Person", "Company", "Event", "Technology", "Gene", "Chemical", "Time", "Location", "Product", "Concept", etc.).
+entity_description:
+Provide a concise explanation of the entity’s properties, significance, or role, as directly supported by the text.
+Relation Extraction
+For each pair of entities identified in Step 1, extract a relationship ONLY if it is clearly and explicitly described in the text.
 
-  - entity_description: A concise explanation of the entity’s properties, significance, or role, as inferred directly from the text.
-
-2. From the entities identified in step 1, identify all pairs of (source_entity, target_entity) that are *clearly related* to each other.
-For each pair of related entities, extract the following information:
-- source_entity: name of the source entity, as identified in step 1
-- target_entity: name of the target entity, as identified in step 1
-- relation: Use lowercase snake_case format (e.g., "works_for", "has_award", "produced_by"). Use general and timeless relationships.
-- relationship_description: explanation as to why you think the source entity and the target entity are related to each other
+For each relationship, extract:
+source_entity: Use the canonical entity_name from Step 1.
+target_entity: Use the canonical entity_name from Step 1.
+relation:
+Use lowercase snake_case format (e.g., "works_for", "has_award", "produced_by").
+Use general, timeless relationships.
+Do NOT invent or infer unstated relationships.
+relationship_description:
+Briefly explain, using evidence from the text, why the relationship exists.
 
 Examples:
 - "Adam" → "Microsoft": relation = "works_for"
