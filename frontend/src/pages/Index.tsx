@@ -91,12 +91,16 @@ const Index = () => {
     setIsLoading(true);
 
     try {
-      // Simulate API call to /chat endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const chatResponse = await fetch(`http://localhost:8000/chat?question=${message}&graph_id=${graphId}`, {
+        method: "GET",
+      });
+      const result = await chatResponse.text(); // plain text
+      var sample = `Based on your knowledge graph, I can see connections between ${graphData.nodes.length} entities. Your question about "${message}" relates to the current graph structure. This is a simulated response - connect to your GraphRAG backend to get real insights!`
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: `Based on your knowledge graph, I can see connections between ${graphData.nodes.length} entities. Your question about "${message}" relates to the current graph structure. This is a simulated response - connect to your GraphRAG backend to get real insights!`,
+        text: result || sample,
         isUser: false,
         timestamp: new Date()
       };
@@ -134,7 +138,8 @@ const Index = () => {
       if (!uploadResponse.ok) throw new Error(data.detail || "Upload failed");
       //Get graph data and graphId from response
       const { graph, graph_id } = data;
-
+      console.log(graph_id);
+      console.log(graph);
       setGraphId(graph_id);
 
       const formattedNodes = graph.nodes.map((node: any) => ({
@@ -147,7 +152,7 @@ const Index = () => {
         id: `${edge.source}_${edge.target}_${index}`,
         source: edge.source,
         target: edge.target,
-        relationship: edge.label,
+        relationship: edge.relationship,
         description: edge.description,
       }));
 
@@ -213,11 +218,37 @@ const Index = () => {
     }
   };
 
-  const handleResetGraph = () => {
-    setGraphData({ nodes: [], edges: [] });
+  const handleReloadGraph = async () => {
+      const uploadResponse = await fetch(`http://localhost:8000/graph?graph_id=${graphId}`, {
+        method: "GET"
+      });
+
+      const graph = await uploadResponse.json();
+      if (!uploadResponse.ok) throw new Error(graph.detail || "Reload failed");
+      //Get graph data and graphId from response
+    
+      const formattedNodes = graph.nodes.map((node: any) => ({
+        id: node.id,
+        type: node.type,
+        description: node.description,
+      }));
+
+      const formattedEdges = graph.edges.map((edge: any, index: number) => ({
+        id: `${edge.source}_${edge.target}_${index}`,
+        source: edge.source,
+        target: edge.target,
+        relationship: edge.relationship,
+        description: edge.description,
+      }));
+
+      // Step 4: Update graph (replace the entire sample with real graph)
+      setGraphData({
+        nodes: formattedNodes,
+        edges: formattedEdges,
+      });
     toast({
-      title: "Graph Reset",
-      description: "Graph data has been cleared.",
+      title: "Graph Reload",
+      description: "Graph data has been restored.",
     });
   };
 
@@ -231,6 +262,7 @@ const Index = () => {
 
   const handleResetAll = () => {
     setGraphData({ nodes: [], edges: [] });
+    setGraphId(null);
     setMessages([]);
     setUploadHistory([]);
     setLastUploadChanges(null);
@@ -256,7 +288,7 @@ const Index = () => {
           <div className="flex-[2.5] bg-card rounded-lg border shadow-sm overflow-hidden">
             <GraphViewer 
               data={graphData} 
-              onReset={handleResetGraph}
+              onReset={handleReloadGraph}
               isLoading={isLoading}
               highlightedNodes={highlightedNodes}
             />
@@ -319,7 +351,7 @@ const Index = () => {
               <div className="h-full p-2">
                 <GraphViewer 
                   data={graphData} 
-                  onReset={handleResetGraph}
+                  onReset={handleReloadGraph}
                   isLoading={isLoading}
                   highlightedNodes={highlightedNodes}
                 />
