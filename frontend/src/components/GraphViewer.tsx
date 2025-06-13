@@ -58,8 +58,8 @@ const GraphViewer: React.FC<GraphViewerProps> = ({ data, onReset, isLoading, hig
 
     const container = svg.append('g');
 
-    const initialZoomScale = 0.8;
-    const initialTranslate = [width * 0.1, height * 0.1];
+    const initialZoomScale = 1.3;
+    const initialTranslate = [width * -0.1, height * -0.1];
 
     container.attr('transform', `translate(${initialTranslate}) scale(${initialZoomScale})`);
 
@@ -72,7 +72,7 @@ const GraphViewer: React.FC<GraphViewerProps> = ({ data, onReset, isLoading, hig
     // Create simulation
     const simulation = d3.forceSimulation<Node>(data.nodes)
       .force('link', d3.forceLink<Node, Edge>(data.edges).id(d => d.id).distance(100))
-      .force('charge', d3.forceManyBody().strength(-100))
+      .force('charge', d3.forceManyBody().strength(-300))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide().radius(40));
 
@@ -100,6 +100,9 @@ const GraphViewer: React.FC<GraphViewerProps> = ({ data, onReset, isLoading, hig
       .attr('font-size', '10px')
       .attr('fill', '#6b7280')
       .attr('text-anchor', 'middle')
+      .attr('paint-order', 'stroke')
+      .style('stroke', '#ffffff')
+      .style('stroke-width', 2)
       .text(d => d.relationship);
 
     // Create nodes with highlighting

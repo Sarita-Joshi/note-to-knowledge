@@ -46,11 +46,16 @@ const UploadSummary: React.FC<UploadSummaryProps> = ({ changes, isVisible, onClo
               </span>
             </div>
             <div className="flex flex-wrap gap-1">
-              {changes.newEntities.map((entity, index) => (
+              {changes.newEntities.slice(0,5).map((entity, index) => (
                 <Badge key={index} variant="secondary" className="text-xs">
                   {entity}
                 </Badge>
               ))}
+              {changes.newEntities.length > 5 && (
+                <div className="text-xs text-muted-foreground italic">
+                  +{changes.newEntities.length - 5} more...
+                </div>
+              )}
             </div>
           </div>
         )}
