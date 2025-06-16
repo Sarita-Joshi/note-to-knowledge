@@ -268,6 +268,7 @@ const Index = () => {
     setLastUploadChanges(null);
     setShowUploadSummary(false);
     setHighlightedNodes([]);
+    localStorage.removeItem('graphId');
     toast({
       title: "All Data Reset",
       description: "Graph, conversation, and upload history have been cleared.",
