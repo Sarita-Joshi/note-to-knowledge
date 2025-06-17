@@ -35,8 +35,8 @@ The system includes:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/graph-rag.git
-cd graph-rag
+git clone https://github.com/Sarita-Joshi/note-to-knowledge.git
+cd note-to-knowledge
 ```
 
 ### 2. Create and Activate a Virtual Environment
@@ -55,7 +55,7 @@ pip install -r backend/requirements.txt
 ### 4. Run the Backend (FastAPI)
 
 ```bash
-uvicorn backend.main:app --reload
+python app.py
 ```
 
 ### 5. Start the Frontend
@@ -68,7 +68,7 @@ npm run dev
 
 ## Environment Variables
 
-Create a `.env` file in the backend root directory with the following keys:
+Create a `.env` file in the backend root directory with the important keys like
 
 ```env
 OPENAI_API_KEY=your_openai_key
@@ -81,11 +81,11 @@ NEO4J_PASSWORD=your_password
 
 ## API Endpoints
 
-See `backend/routes/` for the following endpoints:
+See `app.py` for the following endpoints:
 
 - `POST /upload` — Ingest text or notes
-- `GET /get_nodes` — Retrieve graph nodes and edges
-- `POST /chat` — Query graph via LLM-backed reasoning
+- `GET /graph` — Retrieve graph nodes and edges
+- `GET /chat` — Query graph via LLM-backed reasoning
 
 Auto-generated Swagger docs coming soon.
 
@@ -137,4 +137,4 @@ MIT License
 
 ## Author
 
-Built as part of a personal Mini Project Series focused on experimenting with AI, LLMs, and data-driven systems.
+Built as part of a personal Mini Project Series focused on building E2E Applciations with AI, LLMs, and data-driven systems.
